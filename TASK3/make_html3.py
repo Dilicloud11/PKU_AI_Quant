@@ -1,0 +1,226 @@
+# -*- coding: utf-8 -*-
+"""
+生成 TASK3 网页版报告：index.html
+内容与 PDF 一致，采用响应式排版，图片引用 figures/ 下 PNG。
+作者：张哲铭
+"""
+import os
+import pandas as pd
+
+BASE = os.path.dirname(os.path.abspath(__file__))
+HTML = os.path.join(BASE, "index.html")
+
+NAME = {
+    "sh600900": "长江电力", "hk00700": "腾讯控股", "sh518880": "黄金ETF",
+    "sh515450": "红利低波50ETF", "sz159941": "纳指ETF", "sh588000": "科创50ETF",
+    "sh510300": "沪深300ETF", "sh510500": "中证500ETF",
+}
+
+
+def pct(x, d=1):
+    return f"{x*100:.{d}f}%"
+
+
+def build_table1(df):
+    rows = ""
+    for code in ["sh518880", "sz159941"]:
+        for lb in ["短线", "中线", "长线"]:
+            r = df[(df["code"] == code) & (df["period_label"] == lb)].iloc[0]
+            rows += f"""<tr><td>{NAME[code]}</td><td>{lb}</td>
+<td>MA{r['short']}×MA{r['long']}</td><td>{pct(r['strat_total'])}</td>
+<td>{pct(r['strat_annual'])}</td>
+<td class="{'pos' if r['excess_annual']>=0 else 'neg'}">{pct(r['excess_annual'])}</td>
+<td>{r['sharpe']:.2f}</td><td class="neg">{pct(r['mdd'])}</td>
+<td>{pct(r['win_rate'],0)}</td><td>{r['pl_ratio']:.2f}</td></tr>\n"""
+    return rows
+
+
+def build_table2(df):
+    mid = df[df["period_label"] == "中线"].sort_values("excess_annual", ascending=False)
+    rows = ""
+    for _, r in mid.iterrows():
+        rows += f"""<tr><td>{r['name']}</td><td>{pct(r['strat_annual'])}</td>
+<td>{pct(r['bench_annual'])}</td>
+<td class="{'pos' if r['excess_annual']>=0 else 'neg'}">{pct(r['excess_annual'])}</td>
+<td>{r['sharpe']:.2f}</td><td class="neg">{pct(r['mdd'])}</td>
+<td>{pct(r['bench_mdd'])}</td><td>{int(r['n_trades'])}</td>
+<td>{pct(r['win_rate'],0)}</td></tr>\n"""
+    return rows
+
+
+def main():
+    df = pd.read_csv(os.path.join(BASE, "backtest_results.csv"))
+    t1 = build_table1(df)
+    t2 = build_table2(df)
+
+    html = f"""<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>策略首秀：用均线交叉反应市场趋势变化 · 张哲铭 TASK3</title>
+<style>
+  :root {{ --red:#c0392b; --green:#27ae60; --blue:#2980b9; --ink:#222; --muted:#666; --line:#e4e4e4; }}
+  * {{ box-sizing:border-box; }}
+  body {{ font-family:"Songti SC","宋体",SimSun,serif; color:var(--ink);
+    line-height:1.9; max-width:960px; margin:0 auto; padding:36px 24px 80px;
+    background:#fafafa; text-align:justify; }}
+  h1 {{ font-family:"Songti SC","宋体",serif; text-align:center; font-size:28px;
+    margin:.2em 0 .1em; }}
+  .sub {{ text-align:center; color:var(--muted); margin-bottom:2em; font-size:15px; }}
+  h2 {{ font-size:21px; border-left:5px solid var(--red); padding-left:12px;
+    margin-top:1.8em; color:#1a1a1a; }}
+  h3 {{ font-size:16px; color:#333; margin-top:1.2em; }}
+  p {{ font-size:15.5px; text-indent:2em; margin:.5em 0; }}
+  .formula {{ text-align:center; font-style:italic; color:#111; background:#f0f3f7;
+    padding:8px 12px; border-radius:6px; margin:.8em auto; font-family:"Cambria Math",Georgia,serif; }}
+  pre {{ background:#1e2430; color:#e6e6e6; padding:16px 18px; border-radius:8px;
+    overflow-x:auto; font-family:Consolas,Menlo,monospace; font-size:13px; line-height:1.6;
+    text-indent:0; }}
+  figure {{ margin:1.5em 0; text-align:center; }}
+  figure img {{ max-width:100%; border:1px solid var(--line); border-radius:8px;
+    box-shadow:0 2px 10px rgba(0,0,0,.06); }}
+  figcaption {{ font-size:13.5px; color:var(--muted); margin-top:8px; font-weight:bold; }}
+  table {{ border-collapse:collapse; width:100%; margin:1em 0; font-size:13.5px;
+    background:#fff; }}
+  th,td {{ border:1px solid var(--line); padding:7px 8px; text-align:center; }}
+  th {{ background:#c0392b; color:#fff; font-weight:bold; }}
+  tr:nth-child(even) td {{ background:#faf6f6; }}
+  .pos {{ color:var(--red); font-weight:bold; }}
+  .neg {{ color:var(--green); font-weight:bold; }}
+  .cap {{ text-align:center; font-weight:bold; font-size:14px; margin:1.2em 0 .3em; }}
+  .note {{ font-size:13px; color:var(--muted); border-top:1px solid var(--line);
+    padding-top:16px; margin-top:2.5em; text-indent:0; }}
+  ol.tips li {{ margin:.6em 0; font-size:15.5px; }}
+</style>
+</head>
+<body>
+<h1>策略首秀：用均线交叉反应市场趋势变化</h1>
+<div class="sub">北京大学 AI 量化工作坊 · TASK3　|　姓名：张哲铭</div>
+
+<p>本任务在前两次工作坊（搭建数据引擎、数据诊断与指标构造）的基础上，迈出策略开发的第一步：系统学习并实现经典的双均线（Dual Moving Average）交叉策略，用金叉、死叉信号捕捉市场趋势变化，并以最大回撤、夏普比率、累计回报、超额收益、胜率、盈亏比等指标全面评估策略表现。为使结论更可靠，本文先检索了均线策略的重要学术文献，明确其在何种标的上更有效，随后对黄金 ETF、腾讯控股、纳指 ETF、科创 50、沪深 300、中证 500 等 8 个标的、短/中/长三组均线周期共 24 组参数进行了实证回测。</p>
+
+<h2>一、双均线策略：金叉与死叉</h2>
+<p>移动平均线（Moving Average, MA）是把最近 N 个交易日的收盘价取算术平均得到的一条平滑曲线，它过滤了单日价格的随机噪音，反映一段时间内价格的"平均成本"与趋势方向。均线周期越短，对价格变化越敏感、越贴近行情；周期越长，越平滑、越能代表中长期趋势。</p>
+<p>双均线策略同时使用两条不同周期的均线：一条较短（如 MA5、MA20，称"快线"），一条较长（如 MA20、MA60，称"慢线"）。二者的相对位置刻画了短期动能与长期趋势的关系，其交叉点即为交易信号：</p>
+<h3>· 金叉（Golden Cross）——买入信号</h3>
+<p>当短期均线由下向上穿越长期均线时，形成"金叉"。它意味着近期价格上涨的动能已强于中长期均值，市场趋势可能由弱转强、由跌转涨，是经典的做多（买入）信号。</p>
+<h3>· 死叉（Death Cross）——卖出信号</h3>
+<p>当短期均线由上向下穿越长期均线时，形成"死叉"。它意味着近期动能已弱于中长期均值，趋势可能由强转弱、由涨转跌，是经典的做空或平仓（卖出）信号。</p>
+<p>双均线策略的本质是一种"趋势跟踪"：金叉后满仓持有、死叉后清仓空仓，力求"截断亏损、让利润奔跑"，在单边上涨行情中吃到主升浪、在下跌行情中及时离场规避风险。它不预测顶底，只对已经发生的趋势变化做出反应，因而天然存在"滞后性"——这也是后文实证中需要重点评估的代价。</p>
+
+<h2>二、量化策略评估的核心指标</h2>
+<p>评价一个策略不能只看"赚了多少"，还要看"冒了多大风险、是否稳定、是否真的比躺着不动更强"。本文采用以下一整套指标进行评估：</p>
+<h3>1. 累计回报（Cumulative Return）与总收益率</h3>
+<p>指从期初到期末，策略净值累计增长的比例。若初始净值为 1、期末净值为 V，则累计回报 = V − 1。</p>
+<div class="formula">净值曲线：Equity<sub>t</sub> = Π(1 + r<sub>i</sub>)，　累计回报 = Equity<sub>末</sub> − 1</div>
+<h3>2. 年化收益率（Annualized Return）</h3>
+<p>把不同时间长度的收益折算到"每年"的标准口径，便于横向比较。以 252 个交易日为一年：</p>
+<div class="formula">年化收益率 = (1 + 累计回报) ^ (252 / 交易天数) − 1</div>
+<h3>3. 最大回撤（Maximum Drawdown, MDD）</h3>
+<p>指净值曲线从历史最高点回落到之后最低点的最大跌幅，衡量策略"最坏情况下会亏多少"，是刻画下行风险与持有煎熬程度的关键指标。MDD 越小（越接近 0），资金曲线越稳。</p>
+<div class="formula">MDD = min<sub>t</sub> ( Equity<sub>t</sub> / max<sub>s≤t</sub> Equity<sub>s</sub> − 1 )</div>
+<h3>4. 夏普比率（Sharpe Ratio）</h3>
+<p>由诺贝尔经济学奖得主 William Sharpe 提出，衡量"每承担一单位波动风险，能换来多少超额收益"，是风险调整后收益的核心标尺。数值越高越好，一般认为大于 1 即较为优秀。</p>
+<div class="formula">夏普比率 = (策略日收益均值 − 无风险日利率) / 策略日收益标准差 × √252</div>
+<h3>5. 超额收益（Excess Return）——策略是否真的"有本事"</h3>
+<p>这是本文特别强调的指标。一只标的本身可能就是大牛股，即使一直满仓持有也能赚很多。为区分"收益到底是策略择时带来的，还是标的本身优秀带来的"，本文定义：</p>
+<div class="formula">超额收益 = 策略年化收益 − 买入持有（Buy&amp;Hold）年化收益</div>
+<p>超额收益为正，说明策略的择时确实创造了价值、跑赢了"躺平"；为负，则说明频繁进出反而不如一直持有。它把"标的 β"从"策略 α"中剥离出来，是判断策略真实能力最诚实的一把尺子。</p>
+<h3>6. 胜率（Win Rate）与盈亏比（Profit/Loss Ratio）</h3>
+<p>胜率 = 盈利交易笔数 / 总交易笔数；盈亏比 = 平均每笔盈利 / 平均每笔亏损。趋势跟踪策略的典型特征是"胜率不高但盈亏比很高"——靠少数几次抓住大趋势的盈利，覆盖多次小幅止损。</p>
+
+<h2>三、Python 编程实现</h2>
+<p>本文的回测引擎完全手工实现（strategy.py），核心分为五步：加载数据、计算双均线、生成金叉死叉信号、按"信号次日生效"建立仓位、计入交易成本后累乘得到净值曲线。为杜绝"未来函数"，第 t 日收盘后产生的信号在第 t+1 日才实际建仓或平仓，并在仓位变化当日扣除单边万分之五交易成本。</p>
+<pre>
+# 1) 计算短、长均线
+ma_short = close.rolling(short).mean()
+ma_long  = close.rolling(long).mean()
+
+# 2) 金叉/死叉信号：短均线在长均线之上则持仓状态=1
+raw = (ma_short &gt; ma_long).astype(int)
+cross = raw.diff()          # +1 金叉当日, -1 死叉当日
+
+# 3) 信号次日生效，避免未来函数
+position = raw.shift(1).fillna(0)
+
+# 4) 计入交易成本后的策略日收益
+ret = close.pct_change()
+trade = position.diff().abs()          # 仓位变化 -&gt; 发生交易
+strat_ret = position * ret - trade * 0.0005
+
+# 5) 净值曲线（策略 vs 买入持有基准）
+equity       = (1 + strat_ret).cumprod()
+bench_equity = (1 + ret).cumprod()
+</pre>
+<p>数据方面，本文通过腾讯自选股行情接口获取 8 个标的近 8 年（多数为 2018-04 至 2026-07，约 2000 个交易日）的前复权日线数据。下面以黄金 ETF（518880）的中线参数（MA20×MA60）为例，展示价格、双均线与买卖信号。</p>
+<figure><img src="figures/signal_sh518880.png" alt="黄金ETF信号图">
+<figcaption>图 1　黄金 ETF（518880）双均线交易信号（MA20×MA60）</figcaption></figure>
+<p>如图 1，红色上三角为金叉买入点、绿色下三角为死叉卖出点。在 2018—2019 与 2021—2023 的横盘震荡期，均线频繁交叉产生较多假信号；而在 2019—2020 与 2024—2026 的两轮单边上涨中，金叉后价格持续走高、策略长期持有吃到主升浪，直到 2026 年中见顶死叉离场。这直观展示了双均线策略"怕震荡、爱趋势"的本质。</p>
+
+<h2>四、文献综述：双均线策略在什么标的上验证更有效</h2>
+<h3>1. 奠基之作：Brock, Lakonishok &amp; LeBaron (1992)</h3>
+<p>发表于《Journal of Finance》的 BLL（1992）是检验技术交易规则的开山之作。他们用道琼斯工业指数 1897—1986 长达 90 年数据，通过自助法（Bootstrap）严格检验，发现买入信号（短均线上穿长均线）之后的平均收益显著高于卖出信号，且波动更小；该结果无法被随机游走、AR(1)、GARCH-M 等模型解释，为"均线规则确实包含预测力"提供了首个量化证据。</p>
+<h3>2. 有效性会衰减：自适应市场假说</h3>
+<p>后续研究（Bessembinder &amp; Chan 1998，以及对 1987—2013 年美英日三大成熟市场的再检验）发现，BLL 记录的预测力在 1987 年后显著减弱。原因在于：随着参与者学习、套利资金涌入、成本下降，规则一旦被广泛知晓，超额收益就会被"抢跑"消失。这正是 Lo（2004）"自适应市场假说"的核心——技术规则只在一段时间内有效，会随市场进化而失灵。</p>
+<h3>3. 大宗商品与趋势性资产更适合：Miffre &amp; Rallis (2007)</h3>
+<p>与成熟股市相反，趋势跟踪在大宗商品期货上表现突出。Miffre &amp; Rallis（2007，《Journal of Banking &amp; Finance》）对 31 种商品期货 1979—2004 的动量策略研究发现，13 个动量策略年均收益达 9.38%，而同期等权买入持有商品组合反而亏损 2.64%，且不随样本期衰减。Moskowitz、Ooi &amp; Pedersen（2012）在 58 个跨资产品种上进一步证实"时间序列动量"普遍存在。共同结论是：趋势跟踪在趋势性强、波动大的标的（黄金等贵金属、原油等商品，及具备长期上行 beta 的成长指数）上更有效。</p>
+<h3>4. 对本文标的选择的启示</h3>
+<p>综合文献，双均线策略更可能在"黄金等大宗商品、趋势鲜明的成长指数"上跑出价值，而在"高效率、宽幅震荡的大盘蓝筹与宽基指数"上易因滞后与假信号跑输。恰好本文标的中含黄金 ETF（518880，商品属性）与纳指 ETF（159941，成长指数），可直接作为文献结论的实证检验对象。</p>
+
+<h2>五、多标的、多周期实证回测</h2>
+<p>本文对 8 个标的分别采用短线（MA5×MA20）、中线（MA20×MA60）、长线（MA60×MA120）三组参数回测，共 24 组结果，每组均与"买入持有"基准对比，重点看超额收益。</p>
+
+<h3>1. 文献验证：黄金 ETF 与纳指 ETF</h3>
+<div class="cap">表 1　黄金 ETF 与纳指 ETF 三组周期回测结果</div>
+<table>
+<tr><th>标的</th><th>周期</th><th>参数</th><th>总收益</th><th>年化</th><th>超额年化</th><th>夏普</th><th>最大回撤</th><th>胜率</th><th>盈亏比</th></tr>
+{t1}</table>
+<p>结果与文献高度吻合：黄金 ETF 是全样本中表现最好的标的——中线年化 15.0%、夏普 1.02、最大回撤仅 24.9%，超额年化仅 −0.7%（几乎追平买入持有），盈亏比高达 10.7（胜率 64%）。这正是趋势跟踪的理想画像。纳指 ETF 作为成长指数同样不俗。二者共同印证：趋势性强的商品与成长资产是双均线策略的"主场"。</p>
+<figure><img src="figures/equity_sh518880.png" alt="黄金ETF净值曲线">
+<figcaption>图 2　黄金 ETF 三组周期策略净值 vs 买入持有</figcaption></figure>
+<p>如图 2，黄金 ETF 中长线策略净值在 2026 年高点后走平（死叉离场），成功躲过买入持有从 4.4 跌回 3.0 的剧烈回撤——这正是趋势跟踪"放弃部分顶部收益、换取回撤保护"价值的最佳写照。</p>
+
+<h3>2. 用户关注标的：中线参数横向对比</h3>
+<div class="cap">表 2　8 标的中线策略（MA20×MA60）指标全览（按超额年化排序）</div>
+<table>
+<tr><th>标的</th><th>策略年化</th><th>基准年化</th><th>超额年化</th><th>夏普</th><th>策略回撤</th><th>基准回撤</th><th>交易次数</th><th>胜率</th></tr>
+{t2}</table>
+<figure><img src="figures/summary_excess.png" alt="超额收益对比">
+<figcaption>图 3　各标的中线策略超额年化收益对比</figcaption></figure>
+<p>一个诚实但重要的结论浮现：在 2018—2026 整体向上的样本里，几乎所有标的的双均线择时都跑输了买入持有（超额年化为负）。这与自适应市场假说一致——在流动性好的宽基指数与低波动标的上，均线滞后性让它频繁高买低卖（纳指 −12.9%、红利低波 −11.7% 垫底）。而黄金 ETF（−0.7%）超额损失最小，再次验证"标的选择比参数更重要"。</p>
+
+<h3>3. 别只看收益：双均线真正的价值在"控回撤"</h3>
+<figure><img src="figures/risk_compare.png" alt="回撤对比">
+<figcaption>图 4　双均线策略 vs 买入持有：最大回撤对比（中线）</figcaption></figure>
+<p>若仅以超额收益论英雄，容易误判策略毫无价值。切换到风险维度：图 4 显示，在高波动标的上双均线显著削减回撤——腾讯控股从 76.7% 大幅压降到 53.3%，科创 50 从 59.9% 降到 45.6%。策略用"少赚一点"换来"回撤浅很多、持有体验平稳很多"。反之在本就低波动的红利低波、长江电力上，择时失误反而略增回撤，说明它们没有明显趋势可供跟踪。</p>
+<figure><img src="figures/sharpe_compare.png" alt="夏普热力图" style="max-width:620px">
+<figcaption>图 5　8 标的 × 3 周期 夏普比率热力图</figcaption></figure>
+<p>图 5 的夏普比率进一步佐证：黄金 ETF 三组周期全部"翻绿"（0.89—1.02，全样本最高），纳指 ETF 次之，是最适合双均线策略的两类标的；沪深 300、长江电力、红利低波等则大面积偏橙偏红，风险调整后性价比不佳。</p>
+
+<h3>4. 短线、中线、长线：周期怎么选</h3>
+<figure><img src="figures/period_effect.png" alt="收益回撤散点">
+<figcaption>图 6　收益—回撤分布（8 标的 × 3 周期，共 24 组）</figcaption></figure>
+<p>综合表 1 与图 6 可总结周期效应：（1）短线信号最灵敏、交易最频繁（38—70 次），强趋势标的能更早上车（科创 50 短线年化 13.0%、超额转正 +5.8%），但震荡标的假信号最多、成本侵蚀严重（沪深 300 短线年化 −1.4%）。（2）长线最稳健、交易最少（5—11 次）、盈亏比最高（黄金长线 10.5、腾讯长线胜率 80%），但滞后最强易错拐点。（3）中线在灵敏与稳健间较均衡，是多数标的的折中之选。没有"万能周期"，需与标的波动特性匹配。</p>
+
+<h2>六、双均线策略适用场景与应用心得</h2>
+<ol class="tips">
+<li><b>适合"有趋势"的标的，最怕"宽幅震荡"。</b>策略收益全部来自抓住单边趋势，在黄金等大宗商品、纳指等成长指数上最有效（黄金 ETF 夏普 1.02）；在长期横盘或高效率宽基指数上则不断"高买低卖"。标的选择的重要性远高于参数调优。</li>
+<li><b>核心价值往往不是"多赚"，而是"少亏、控回撤"。</b>长牛样本里策略超额多为负，但它把腾讯回撤从 77% 压到 53%、黄金从 30% 压到 25%。用一定收益换取显著更浅的回撤与更高夏普，本身就是有意义的风险管理。</li>
+<li><b>天生"低胜率、高盈亏比"，要接受频繁小亏。</b>趋势型标的胜率多在 40%—65%，但盈亏比常达 2—10 倍，盈利高度依赖少数几笔大趋势。必须有纪律地执行每次止损信号。</li>
+<li><b>周期需与标的波动匹配，且必须计入成本、规避未来函数。</b>波动大选偏短周期、波动小选偏长周期；短周期交易频繁，务必纳入佣金与冲击成本（本文用万分之五），并让信号"次日生效"，否则会系统性高估收益。</li>
+<li><b>单一均线并非万能，宜作"趋势过滤器"与其他工具配合。</b>其超额收益会随市场成熟衰减，实务中常与 RSI/MACD、成交量、止损止盈与仓位管理结合，用震荡指标过滤假信号、用趋势指标确认方向。</li>
+</ol>
+<p>总之，双均线策略是理解"趋势跟踪"思想最好的入门范式：逻辑简单、可解释性强，能清晰暴露择时策略"怕震荡、爱趋势、重风控"的一般规律。它教会我们最重要的一课或许是——评价任何策略时，都要用超额收益把"标的的 β"与"策略的 α"分开，用夏普和最大回撤把"收益"与"风险"一起看，才能做出诚实而全面的判断。</p>
+
+<p class="note">数据来源：腾讯自选股行情接口（前复权日线，2018—2026）；回测与绘图代码：strategy.py / run_backtest.py / extra_analysis.py。本文仅为量化学习实践，不构成任何投资建议，市场有风险，决策需谨慎。</p>
+</body>
+</html>
+"""
+    with open(HTML, "w", encoding="utf-8") as f:
+        f.write(html)
+    print("已生成：", HTML)
+
+
+if __name__ == "__main__":
+    main()
