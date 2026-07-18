@@ -1,0 +1,17 @@
+﻿feat_a,feat_b,abs_corr
+mom_1,logret_1,1.0
+mom_3,ma_bias_5,0.931
+mom_5,logret_5,1.0
+mom_5,ma_bias_10,0.914
+mom_10,ma_bias_20,0.906
+logret_5,ma_bias_10,0.915
+ma_bias_60,ma10_ma60,0.91
+ma_bias_60,macd_dif,0.943
+ma10_ma60,macd_dif,0.92
+ma10_ma60,macd_dea,0.984
+rsi_6,rsi_14,0.907
+rsi_6,boll_pctb,0.923
+rsi_14,boll_pctb,0.905
+macd_dif,macd_dea,0.948
+kdj_k,kdj_d,0.918
+boll_pctb,pos_20,0.936

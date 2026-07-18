@@ -1,0 +1,4 @@
+# 训练好的模型文件（体积大，可由 ml_models.py 复现）
+models/*.pkl
+# 财务原始 md（可由 westock-data 重新拉取）
+data/fin_raw_*.md
