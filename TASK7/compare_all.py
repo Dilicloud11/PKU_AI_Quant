@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 三策略横向对比 + 分年度(牛熊)表现
-把 小市值优化版 / 双均线优化版 / ETF轮动v1.1 的净值统一到公共时间轴对比，
+把 小市值优化版 / 银行股轮动 / ETF轮动v1.1 的净值统一到公共时间轴对比，
 并计算各策略在不同市场阶段（牛/熊/震荡）的表现。
 """
 import os
@@ -42,24 +42,22 @@ def load_nav(fn, col):
 def run():
     # 各策略净值
     sc = load_nav("smallcap_nav.csv", "国证2000优化版")
-    dm = load_nav("dualma_nav.csv", "优化版")
-    etf = load_nav("etf_rotation_nav.csv", "v1.1双周+熔断")  # 列名沿用文件
-    # 修正：etf_rotation_nav.csv 的列名
+    bk = load_nav("bank_nav.csv", "银行股轮动")
     etf_df = pd.read_csv(os.path.join(DATA, "etf_rotation_nav.csv"), encoding="utf-8-sig")
     etf_df["date"] = pd.to_datetime(etf_df.iloc[:, 0]); etf_df = etf_df.set_index("date")
     etf = etf_df[[c for c in etf_df.columns if "v1.1" in c][0]]
     hs = load_close("sh000300")
 
     # 公共时间轴（取最晚起点）
-    start = max(sc.index[0], dm.index[0], etf.index[0])
+    start = max(sc.index[0], bk.index[0], etf.index[0])
     idx = sc.index[sc.index >= start]
     def rebase(s):
         s2 = s.reindex(idx).ffill()
         return s2 / s2.iloc[0]
-    sc_r = rebase(sc); dm_r = rebase(dm); etf_r = rebase(etf); hs_r = rebase(hs)
+    sc_r = rebase(sc); bk_r = rebase(bk); etf_r = rebase(etf); hs_r = rebase(hs)
 
     strategies = {"小市值优化版": (sc_r, RED), "ETF轮动v1.1": (etf_r, PURPLE),
-                  "双均线优化版": (dm_r, BLUE), "沪深300基准": (hs_r, GRAY)}
+                  "银行股轮动": (bk_r, BLUE), "沪深300基准": (hs_r, GRAY)}
 
     # 汇总指标
     rows = []
@@ -123,7 +121,7 @@ def run():
     ax.set_xlabel("年化波动率 (%)"); ax.set_ylabel("年化收益 (%)")
     ax.set_title("D. 风险-收益散点（左上角最优）", fontsize=11); ax.grid(alpha=0.3)
 
-    plt.suptitle("三策略综合对比：小市值 / 双均线 / ETF轮动 — 2020-2026 公共窗口", fontsize=13, fontweight="bold")
+    plt.suptitle("三策略综合对比：小市值 / 银行股轮动 / ETF轮动 — 跨牛熊公共窗口", fontsize=13, fontweight="bold")
     plt.tight_layout(rect=[0, 0, 1, 0.97])
     plt.savefig(os.path.join(FIG, "compare_4panel.png"), dpi=130, bbox_inches="tight")
     plt.close()
