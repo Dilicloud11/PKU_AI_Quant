@@ -40,6 +40,9 @@ def tbl(headers, rows):
 
 def build():
     pan = pd.read_csv(os.path.join(BASE, "panorama_summary.csv"), encoding="utf-8-sig")
+    etf_m = pd.read_csv(os.path.join(BASE, "etf_metrics.csv"), encoding="utf-8-sig")
+    def em(k,c):
+        return etf_m[etf_m["方案"]==k][c].iloc[0]
     pan_rows = [[r["策略类别"], r["代表配置"], F(r["夏普"]), P(r["最大回撤"])] for _, r in pan.iterrows()]
 
     task_rows = [
@@ -125,14 +128,15 @@ ul.adv{{padding-left:1.5em;}} ul.adv li{{margin:8px 0;text-align:justify;}}
 <li class="lv1"><span>2.1 八项任务与策略全景</span><span>3</span></li>
 <li class="lv1"><span>2.2 各类策略的优缺点与适用场景</span><span>4</span></li>
 <li class="lv1"><span>2.3 跨策略风险调整绩效对比</span><span>5</span></li>
-<li class="lv1"><span>2.4 策略间的关联性与互补性</span><span>6</span></li>
-<li class="lv1"><span>2.5 多策略量化交易系统的构建思路</span><span>6</span></li>
-<li><b>三、机器学习在量化交易中的应用总结</b><span>7</span></li>
-<li class="lv1"><span>3.1 数据预处理与特征工程</span><span>7</span></li>
-<li class="lv1"><span>3.2 模型选择、训练与评估优化</span><span>8</span></li>
-<li class="lv1"><span>3.3 机器学习的优势、局限与未来趋势</span><span>8</span></li>
-<li><b>四、结论与展望</b><span>9</span></li>
-<li><b>附录：改进建议</b><span>10</span></li>
+<li class="lv1"><span>2.4 重点策略深度剖析：ETF 双重动量轮动</span><span>5</span></li>
+<li class="lv1"><span>2.5 策略间的关联性与互补性</span><span>8</span></li>
+<li class="lv1"><span>2.6 多策略量化交易系统的构建思路</span><span>8</span></li>
+<li><b>三、机器学习在量化交易中的应用总结</b><span>9</span></li>
+<li class="lv1"><span>3.1 数据预处理与特征工程</span><span>9</span></li>
+<li class="lv1"><span>3.2 模型选择、训练与评估优化</span><span>9</span></li>
+<li class="lv1"><span>3.3 机器学习的优势、局限与未来趋势</span><span>10</span></li>
+<li><b>四、结论与展望</b><span>11</span></li>
+<li><b>附录：改进建议</b><span>12</span></li>
 </ul></div>
 
 <h2>摘要</h2>
@@ -178,13 +182,27 @@ ul.adv{{padding-left:1.5em;}} ul.adv li{{margin:8px 0;text-align:justify;}}
 代价是绝对收益也非常微薄——属于“看起来很稳、实则赚得很少”。真正在充分投资下取得高夏普的是 <span class="pos">ETF 双重动量轮动（夏普 1.13、回撤 −21.3%）</span>，含金量最高。
 银行股轮动（夏普 0.54、回撤仅 −20.5%）以最小回撤成为“防御担当”；小市值（夏普 0.40）经风控后回撤压至 −22.6%、各阶段均正。作为对照，被动买入持有沪深300 夏普仅 0.27、
 回撤高达 <span class="neg">−45.6%</span>，全面弱于主动策略。可见优秀的策略设计确实创造价值，据此提出<b>改进建议 2</b>（见附录）。</p>
-<h3>2.4 策略间的关联性与互补性</h3>
-<p>各类策略并非孤立，而在“进攻—均衡—防御”谱系上相互补位，这正是构建组合的基础。任务七三策略构成天然互补三角，其跨牛熊表现对比如图 2。</p>
-<figure><img src="{img64('task7_compare.png')}"><figcaption>图 2　三类主力策略的跨牛熊表现对比（净值、回撤、分阶段收益与风险-收益散点）</figcaption></figure>
-<p>由图 2 可见：ETF 轮动攻守兼备、牛市与反弹中弹性最强；小市值进攻性强、需风控约束；银行股轮动依托高股息低波、回撤最小，在成长风格失效时提供保护。
+<h3>2.4 重点策略深度剖析：ETF 双重动量轮动</h3>
+<p>鉴于 ETF 双重动量轮动是本工作坊综合表现最优的策略，本节对其做多维度图表化剖析。图 2 为资产曲线对比，改进版 v1.1（双周调仓）以
+总收益 <span class="pos">{P(em("v1.1双周","总收益"))}</span>、年化 {P(em("v1.1双周","年化"))} 显著跑赢 v1.0（周度）、等权持有与沪深300。</p>
+<figure><img src="{img64('etf_A_equity.png')}"><figcaption>图 2　ETF 轮动策略资产曲线对比（策略 vs 基准）</figcaption></figure>
+<p>图 3 的回撤曲线显示，v1.1 最大回撤仅 <span class="pos">{P(em("v1.1双周","最大回撤"))}</span>，明显浅于 v1.0 与等权持有，风险控制更优。</p>
+<figure><img src="{img64('etf_B_drawdown.png')}"><figcaption>图 3　ETF 轮动策略回撤曲线（风险特征）</figcaption></figure>
+<p>图 4 的月度收益热力图（红涨绿跌）展示收益的时间分布：正收益月份（红）明显多于负收益月份（绿），收益来源在时间上较分散、并非依赖个别月份。</p>
+<figure><img src="{img64('etf_C_monthly_heatmap.png')}"><figcaption>图 4　ETF 轮动 v1.1 月度收益热力图（时间分布）</figcaption></figure>
+<p>图 5 的日收益分布直方图显示，v1.1 收益分布相对沪深300 更向右偏移（日均为正）、尖峰特征明显，在控制单日波动的同时积累正向收益。</p>
+<figure><img src="{img64('etf_D_return_hist.png')}"><figcaption>图 5　ETF 轮动 v1.1 日收益分布直方图（收益特征）</figcaption></figure>
+<p>图 6 的滚动 1 年夏普比率考察稳定性：v1.1 滚动夏普多数时间位于零轴以上、频繁高于 1，稳定性优于等权持有，说明超额并非来自某段行情的偶然。</p>
+<figure><img src="{img64('etf_E_rolling_sharpe.png')}"><figcaption>图 6　ETF 轮动 v1.1 滚动 1 年夏普比率（稳定性）</figcaption></figure>
+<p>图 7 的月度持仓轮动图直观呈现“信号验证”：策略在宽基、行业与黄金等大类间动态切换——下跌与震荡期黄金（避险）权重上升，上涨期向创业板、券商等高弹性板块倾斜，轮动逻辑符合预期。</p>
+<figure><img src="{img64('etf_F_holdings.png')}"><figcaption>图 7　ETF 轮动 v1.1 月度持仓轮动图（选中标的与权重，信号验证）</figcaption></figure>
+<h3>2.5 策略间的关联性与互补性</h3>
+<p>各类策略并非孤立，而在“进攻—均衡—防御”谱系上相互补位，这正是构建组合的基础。任务七三策略构成天然互补三角，其跨牛熊表现对比如图 8。</p>
+<figure><img src="{img64('task7_compare.png')}"><figcaption>图 8　三类主力策略的跨牛熊表现对比（净值、回撤、分阶段收益与风险-收益散点）</figcaption></figure>
+<p>由图 8 可见：ETF 轮动攻守兼备、牛市与反弹中弹性最强；小市值进攻性强、需风控约束；银行股轮动依托高股息低波、回撤最小，在成长风格失效时提供保护。
 它们在不同阶段此消彼长——2024Q4 以来成长反弹中 ETF 轮动大幅领先而银行股轮动落后；但 2022–2024 熊市里银行股轮动逆势为正、成为压舱石。
 趋势跟随与机器学习择时类则可作为“风险开关”，在系统性下跌中降低敞口。这种低相关、能互补的特性是组合成更稳健系统的前提，据此提出<b>改进建议 3</b>。</p>
-<h3>2.5 多策略量化交易系统的构建思路</h3>
+<h3>2.6 多策略量化交易系统的构建思路</h3>
 <p>综合上述分析，本人提出分层的多策略系统思路：第一层“<b>核心配置层</b>”以攻守兼备的 ETF 双重动量轮动为主力；第二层“<b>卫星增强层</b>”配以进攻型小市值与
 防御型银行股轮动，通过风格分散平滑收益；第三层“<b>风险控制层</b>”用趋势/机器学习类大盘择时作为“总闸”，系统性风险来临时统一降仓。三层按风险预算分配资金、
 定期再平衡，各子策略独立止损。这一“核心—卫星—风控”框架把单一策略的脆弱性分散到有机整体，是本人未来实盘的核心蓝图，落地要点见<b>改进建议 3、4</b>。</p>
